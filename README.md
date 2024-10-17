@@ -1,45 +1,6 @@
 # Identity Alchemist
 
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
-  <!-- Background -->
-  <rect width="800" height="400" fill="#1a1a2e"/>
-  
-  <!-- Alchemist's flask -->
-  <path d="M400 100 L350 300 Q400 320 450 300 Z" fill="#16213e" stroke="#e94560" stroke-width="4"/>
-  
-  <!-- Bubbles in flask -->
-  <circle cx="385" cy="250" r="15" fill="#e94560" opacity="0.7">
-    <animate attributeName="cy" values="250;230;250" dur="3s" repeatCount="indefinite"/>
-  </circle>
-  <circle cx="415" cy="270" r="10" fill="#e94560" opacity="0.5">
-    <animate attributeName="cy" values="270;255;270" dur="2.5s" repeatCount="indefinite"/>
-  </circle>
-  
-  <!-- DNA helix -->
-  <path d="M380 120 Q360 160 380 200 Q400 240 380 280" fill="none" stroke="#0f3460" stroke-width="6"/>
-  <path d="M420 120 Q440 160 420 200 Q400 240 420 280" fill="none" stroke="#0f3460" stroke-width="6"/>
-  
-  <!-- Connecting lines -->
-  <line x1="380" y1="140" x2="420" y2="140" stroke="#0f3460" stroke-width="4"/>
-  <line x1="380" y1="180" x2="420" y2="180" stroke="#0f3460" stroke-width="4"/>
-  <line x1="380" y1="220" x2="420" y2="220" stroke="#0f3460" stroke-width="4"/>
-  <line x1="380" y1="260" x2="420" y2="260" stroke="#0f3460" stroke-width="4"/>
-  
-  <!-- Binary code -->
-  <text x="20" y="30" fill="#e94560" font-family="monospace" font-size="20">
-    10110010 01001011 11001010
-    <animate attributeName="opacity" values="0;1;0" dur="5s" repeatCount="indefinite"/>
-  </text>
-  <text x="560" y="380" fill="#e94560" font-family="monospace" font-size="20">
-    11100101 00110101 10011001
-    <animate attributeName="opacity" values="0;1;0" dur="5s" repeatCount="indefinite"/>
-  </text>
-  
-  <!-- Title -->
-  <text x="400" y="350" fill="#e94560" font-family="Arial, sans-serif" font-size="40" text-anchor="middle" font-weight="bold">
-    Identity Alchemist
-  </text>
-</svg>
+![Identity Alchemist Logo](logo.svg)
 
 ## Table of Contents
 - [Overview](#overview)
