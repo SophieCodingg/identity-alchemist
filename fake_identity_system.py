@@ -1,6 +1,7 @@
 import random
 import string
 import datetime
+from datetime import date
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
@@ -20,13 +21,12 @@ class IdentityGenerator:
         self.education_levels = ['High School', 'Associate', 'Bachelor', 'Master', 'PhD']
         self.occupations = ['Engineer', 'Teacher', 'Doctor', 'Lawyer', 'Accountant', 'Manager', 'Salesperson', 'Artist', 'Programmer', 'Nurse']
 
-
     def generate_identity(self):
         gender = random.choice(['Male', 'Female'])
         first_name = self.fake.first_name_male() if gender == 'Male' else self.fake.first_name_female()
         last_name = self.fake.last_name()
         dob = self.fake.date_of_birth(minimum_age=18, maximum_age=80)
-        age = (datetime.date.today() - dob).days // 365
+        age = (date.today() - dob).days // 365
         country = random.choice(self.countries)
         ethnicity = random.choice(self.ethnicities)
         education = random.choice(self.education_levels)
@@ -41,7 +41,7 @@ class IdentityGenerator:
             'first_name': first_name,
             'last_name': last_name,
             'gender': gender,
-            'dob': dob,
+            'dob': dob.strftime('%Y-%m-%d'),  # Convertir a string para facilitar la serialización
             'age': age,
             'country': country,
             'ethnicity': ethnicity,
@@ -65,8 +65,6 @@ class MachineLearningModel:
         self.countries = ['USA', 'Canada', 'UK', 'Australia', 'Germany', 'France', 'Spain', 'Italy', 'Japan', 'Brazil']
         self.is_trained = False
 
-
-
     def prepare_data(self, identities):
         X = []
         y = []
@@ -83,12 +81,13 @@ class MachineLearningModel:
         return np.array(X), np.array(y)
 
     def train(self, X, y):
+        if len(X) < 2:
+            raise ValueError("Not enough data to train the model. Generate more identities first.")
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         self.model.fit(X_train, y_train)
         accuracy = self.model.score(X_test, y_test)
         print(f"Model accuracy: {accuracy:.2f}")
         self.is_trained = True
-
 
     def predict(self, identity):
         if not self.is_trained:
@@ -106,7 +105,6 @@ class MachineLearningModel:
         except Exception as e:
             print(f"Prediction failed: {str(e)}")
             return None
-
 
 class DataValidator:
     @staticmethod
@@ -136,12 +134,10 @@ class DataValidator:
             checksum += sum(divmod(digit * 2, 10))
         return checksum % 10 == 0
 
-
 class IdentityEncryptor:
     def __init__(self):
         self.key = Fernet.generate_key()
         self.fernet = Fernet(self.key)
-
 
     def encrypt_identity(self, identity):
         encrypted_identity = {}
@@ -190,7 +186,7 @@ class IdentityAnalyzer:
 class IdentityExporter:
     @staticmethod
     def export_to_csv(identities, filename):
-        with open(filename, 'w', newline='') as csvfile:
+        with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
             fieldnames = identities[0].keys()
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
@@ -199,8 +195,8 @@ class IdentityExporter:
 
     @staticmethod
     def export_to_json(identities, filename):
-        with open(filename, 'w') as jsonfile:
-            json.dump(identities, jsonfile, indent=4, default=str)
+        with open(filename, 'w', encoding='utf-8') as jsonfile:
+            json.dump(identities, jsonfile, indent=4, ensure_ascii=False)
 
     @staticmethod
     def export_to_sql(identities, db_name):
@@ -240,7 +236,7 @@ class IdentityImporter:
     @staticmethod
     def import_from_csv(filename):
         identities = []
-        with open(filename, 'r') as csvfile:
+        with open(filename, 'r', encoding='utf-8') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
                 identities.append(row)
@@ -248,7 +244,7 @@ class IdentityImporter:
 
     @staticmethod
     def import_from_json(filename):
-        with open(filename, 'r') as jsonfile:
+        with open(filename, 'r', encoding='utf-8') as jsonfile:
             identities = json.load(jsonfile)
         return identities
 
@@ -275,30 +271,41 @@ class FakeIdentitySystem:
         self.ml_model = MachineLearningModel()
         self.generated_identities = []
         self.data_validator = DataValidator()
-        self.identity_encryptor = IdentityEncryptor()  # Elimina el argumento Fernet.generate_key()
-        self.identity_analyzer = IdentityAnalyzer(self.generated_identities)
+        self.identity_encryptor = IdentityEncryptor()
+        self.identity_analyzer = None  # Inicializado como None
         self.identity_exporter = IdentityExporter()
         self.identity_importer = IdentityImporter()
-
 
     def generate_identities(self, num_identities):
         for _ in range(num_identities):
             identity = self.identity_generator.generate_identity()
             self.generated_identities.append(identity)
         print(f"Generated {num_identities} fake identities.")
+        # Actualizar el analizador después de generar nuevas identidades
+        self.identity_analyzer = IdentityAnalyzer(self.generated_identities)
 
     def train_model(self):
+        if not self.generated_identities:
+            print("No identities generated yet. Generate some identities first.")
+            return
         X, y = self.ml_model.prepare_data(self.generated_identities)
-        self.ml_model.train(X, y)
+        try:
+            self.ml_model.train(X, y)
+        except ValueError as e:
+            print(f"Error training model: {str(e)}")
 
     def generate_enhanced_identity(self):
+        if not self.ml_model.is_trained:
+            print("Model not trained yet. Train the model first.")
+            return None
         base_identity = self.identity_generator.generate_identity()
         predicted_country = self.ml_model.predict(base_identity)
-        base_identity['country'] = predicted_country
+        if predicted_country:
+            base_identity['country'] = predicted_country
         return base_identity
 
     def save_identities_to_file(self, filename):
-        with open(filename, 'w') as f:
+        with open(filename, 'w', encoding='utf-8') as f:
             for identity in self.generated_identities:
                 f.write(str(identity) + '\n')
         print(f"Saved {len(self.generated_identities)} identities to {filename}")
@@ -308,14 +315,7 @@ class FakeIdentitySystem:
         issue_date = self.identity_generator.fake.date_between(start_date='-5y', end_date='today')
         expiry_date = issue_date + datetime.timedelta(days=365 * 10)  # 10 years validity
 
-        # Verifica si dob es una cadena y convierte a datetime si es necesario
-        if isinstance(identity['dob'], str):
-            try:
-                # Utiliza datetime.datetime.strptime debido a la forma en que has importado datetime
-                identity['dob'] = datetime.datetime.strptime(identity['dob'], '%Y-%m-%d').date()
-            except ValueError:
-                print("Error: Fecha de nacimiento en formato no esperado.")
-                return
+        dob = datetime.datetime.strptime(identity['dob'], '%Y-%m-%d').date()
 
         id_card = f"""
         ================================
@@ -324,7 +324,7 @@ class FakeIdentitySystem:
         ID Number: {id_number}
         Name: {identity['first_name']} {identity['last_name']}
         Gender: {identity['gender']}
-        Date of Birth: {identity['dob'].strftime('%Y-%m-%d')}
+        Date of Birth: {dob.strftime('%Y-%m-%d')}
         Nationality: {identity['country']}
         Address: {identity['address']}
         
@@ -334,18 +334,24 @@ class FakeIdentitySystem:
         """
         return id_card
 
-
     def validate_identity(self, identity):
         is_valid = True
         is_valid &= self.data_validator.validate_age(identity['age'])
         is_valid &= self.data_validator.validate_email(identity['email'])
         is_valid &= self.data_validator.validate_phone(identity['phone'])
-        is_valid &= self.data_validator.validate_credit_card(identity['credit_card'])  # Eliminar split('-')[0]
+        is_valid &= self.data_validator.validate_credit_card(identity['credit_card'])
         return is_valid
 
-
     def encrypt_identities(self):
-        self.encrypted_identities = [self.identity_encryptor.encrypt_identity(identity) for identity in self.generated_identities]
+        try:
+            self.encrypted_identities = [
+                self.identity_encryptor.encrypt_identity(identity) 
+                for identity in self.generated_identities
+            ]
+            print("Identities encrypted successfully.")
+        except Exception as e:
+            print(f"Encryption failed: {str(e)}")
+
 
     def decrypt_identities(self):
         self.decrypted_identities = [self.identity_encryptor.decrypt_identity(identity) for identity in self.encrypted_identities]
