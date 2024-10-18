@@ -54,7 +54,10 @@ class GUI(ctk.CTk):
         generate_frame = ctk.CTkFrame(self.notebook, fg_color="#16213e")
         self.notebook.add(generate_frame, text="Generate")
         
-        num_identities_label = ctk.CTkLabel(generate_frame, text="Number of Identities:", font=("Roboto", 14))
+        generate_frame.grid_columnconfigure(0, weight=1)
+        generate_frame.grid_columnconfigure(1, weight=1)
+        
+        num_identities_label = ctk.CTkLabel(generate_frame, text="Number of Identities:", font=("Roboto", 14), text_color="white")
         num_identities_label.grid(row=0, column=0, padx=10, pady=10, sticky="e")
         
         self.num_identities_entry = ctk.CTkEntry(generate_frame, font=("Roboto", 14))
@@ -63,16 +66,29 @@ class GUI(ctk.CTk):
         generate_button = ctk.CTkButton(generate_frame, text="Generate Identities", font=("Roboto", 14), command=self.generate_identities)
         generate_button.grid(row=1, column=0, columnspan=2, padx=10, pady=10)
         
-        self.identity_listbox = tk.Listbox(generate_frame, font=("Roboto", 12), bg="#1a1a2e", fg="#e94560", selectbackground="#0f3460")
-        self.identity_listbox.grid(row=2, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")
+        self.progress_bar = ctk.CTkProgressBar(generate_frame)
+        self.progress_bar.grid(row=2, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
+        self.progress_bar.set(0)
         
-        scrollbar = ttk.Scrollbar(generate_frame, orient="vertical", command=self.identity_listbox.yview)
-        scrollbar.grid(row=2, column=2, sticky="ns")
-        self.identity_listbox.config(yscrollcommand=scrollbar.set)
+        columns = ("Name", "Age", "Gender", "Country")
+        self.identity_tree = ttk.Treeview(generate_frame, columns=columns, show="headings")
+        for col in columns:
+            self.identity_tree.heading(col, text=col)
+            self.identity_tree.column(col, width=100)
+        self.identity_tree.grid(row=3, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")
         
-        generate_frame.grid_columnconfigure(0, weight=1)
-        generate_frame.grid_columnconfigure(1, weight=1)
-        generate_frame.grid_rowconfigure(2, weight=1)
+        scrollbar = ttk.Scrollbar(generate_frame, orient="vertical", command=self.identity_tree.yview)
+        scrollbar.grid(row=3, column=2, sticky="ns")
+        self.identity_tree.configure(yscrollcommand=scrollbar.set)
+        
+        generate_frame.grid_rowconfigure(3, weight=1)
+        
+        search_label = ctk.CTkLabel(generate_frame, text="Search:", font=("Roboto", 14))
+        search_label.grid(row=4, column=0, padx=10, pady=10, sticky="e")
+        
+        self.search_entry = ctk.CTkEntry(generate_frame, font=("Roboto", 14))
+        self.search_entry.grid(row=4, column=1, padx=10, pady=10, sticky="w")
+        self.search_entry.bind("<KeyRelease>", self.search_identities)
         
     def create_enhance_tab(self):
         enhance_frame = ctk.CTkFrame(self.notebook, fg_color="#16213e")
@@ -145,79 +161,131 @@ class GUI(ctk.CTk):
     def generate_identities(self):
         try:
             num_identities = int(self.num_identities_entry.get())
+            if num_identities <= 0:
+                raise ValueError("Number of identities must be positive")
+            
+            self.progress_bar.set(0)
+            self.update_idletasks()
+            
             self.system.generate_identities(num_identities)
-            self.update_identity_listbox()
+            self.update_identity_treeview()
+            
+            self.progress_bar.set(1)
             self.status_var.set(f"Generated {num_identities} identities")
-        except ValueError:
-            messagebox.showerror("Error", "Please enter a valid number")
+        except ValueError as e:
+            messagebox.showerror("Error", str(e))
         
-    def update_identity_listbox(self):
-        self.identity_listbox.delete(0, tk.END)
+    def update_identity_treeview(self):
+        self.identity_tree.delete(*self.identity_tree.get_children())
         for i, identity in enumerate(self.system.generated_identities):
-            self.identity_listbox.insert(tk.END, f"Identity {i+1}: {identity['first_name']} {identity['last_name']}")
+            self.identity_tree.insert("", "end", values=(
+                f"{identity['first_name']} {identity['last_name']}",
+                identity['age'],
+                identity['gender'],
+                identity['country']
+            ))
         
     def train_model(self):
-        self.system.train_model()
-        self.status_var.set("Model trained successfully")
+        try:
+            self.system.train_model()
+            self.status_var.set("Model trained successfully")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
         
     def generate_enhanced_identity(self):
-        enhanced_identity = self.system.generate_enhanced_identity()
-        self.enhanced_identity_text.delete("1.0", tk.END)
-        for key, value in enhanced_identity.items():
-            self.enhanced_identity_text.insert(tk.END, f"{key}: {value}\n")
-        self.status_var.set("Enhanced identity generated")
+        try:
+            enhanced_identity = self.system.generate_enhanced_identity()
+            self.enhanced_identity_text.delete("1.0", tk.END)
+            for key, value in enhanced_identity.items():
+                self.enhanced_identity_text.insert(tk.END, f"{key}: {value}\n")
+            self.status_var.set("Enhanced identity generated")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
         
     def analyze_identities(self):
-        self.system.analyze_identities()
-        self.analysis_text.delete("1.0", tk.END)
-        age_distribution = self.system.identity_analyzer.get_age_distribution()
-        gender_distribution = self.system.identity_analyzer.get_gender_distribution()
-        country_distribution = self.system.identity_analyzer.get_country_distribution()
-        common_names = self.system.identity_analyzer.get_most_common_names()
-        
-        self.analysis_text.insert(tk.END, "Age Distribution:\n")
-        self.analysis_text.insert(tk.END, json.dumps(age_distribution, indent=2) + "\n\n")
-        self.analysis_text.insert(tk.END, "Gender Distribution:\n")
-        self.analysis_text.insert(tk.END, json.dumps(gender_distribution, indent=2) + "\n\n")
-        self.analysis_text.insert(tk.END, "Country Distribution:\n")
-        self.analysis_text.insert(tk.END, json.dumps(country_distribution, indent=2) + "\n\n")
-        self.analysis_text.insert(tk.END, "Most Common Names:\n")
-        self.analysis_text.insert(tk.END, json.dumps(common_names, indent=2) + "\n")
-        
-        self.status_var.set("Identity analysis completed")
+        try:
+            self.system.analyze_identities()
+            self.analysis_text.delete("1.0", tk.END)
+            age_distribution = self.system.identity_analyzer.get_age_distribution()
+            gender_distribution = self.system.identity_analyzer.get_gender_distribution()
+            country_distribution = self.system.identity_analyzer.get_country_distribution()
+            common_names = self.system.identity_analyzer.get_most_common_names()
+            
+            self.analysis_text.insert(tk.END, "Age Distribution:\n")
+            self.analysis_text.insert(tk.END, json.dumps(age_distribution, indent=2) + "\n\n")
+            self.analysis_text.insert(tk.END, "Gender Distribution:\n")
+            self.analysis_text.insert(tk.END, json.dumps(gender_distribution, indent=2) + "\n\n")
+            self.analysis_text.insert(tk.END, "Country Distribution:\n")
+            self.analysis_text.insert(tk.END, json.dumps(country_distribution, indent=2) + "\n\n")
+            self.analysis_text.insert(tk.END, "Most Common Names:\n")
+            self.analysis_text.insert(tk.END, json.dumps(common_names, indent=2) + "\n")
+            
+            self.status_var.set("Identity analysis completed")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
         
     def export_identities(self):
-        format = self.export_format_var.get()
-        filename = filedialog.asksaveasfilename(defaultextension=f".{format}")
-        if filename:
-            self.system.export_identities(format, filename)
-            self.status_var.set(f"Identities exported to {filename}")
+        try:
+            format = self.export_format_var.get()
+            filename = filedialog.asksaveasfilename(defaultextension=f".{format}")
+            if filename:
+                self.system.export_identities(format, filename)
+                self.status_var.set(f"Identities exported to {filename}")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
         
     def import_identities(self):
-        format = self.import_format_var.get()
-        filename = filedialog.askopenfilename(filetypes=[(f"{format.upper()} files", f"*.{format}")])
-        if filename:
-            self.system.import_identities(format, filename)
-            self.update_identity_listbox()
-            self.status_var.set(f"Identities imported from {filename}")
+        try:
+            format = self.import_format_var.get()
+            filename = filedialog.askopenfilename(filetypes=[(f"{format.upper()} files", f"*.{format}")])
+            if filename:
+                self.system.import_identities(format, filename)
+                self.update_identity_treeview()
+                self.status_var.set(f"Identities imported from {filename}")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
         
     def encrypt_identities(self):
-        self.system.encrypt_identities()
-        self.encrypt_decrypt_text.delete("1.0", tk.END)
-        self.encrypt_decrypt_text.insert(tk.END, "Identities encrypted successfully.\n")
-        for i, identity in enumerate(self.system.encrypted_identities):
-            self.encrypt_decrypt_text.insert(tk.END, f"Encrypted Identity {i+1}:\n")
-            self.encrypt_decrypt_text.insert(tk.END, json.dumps(identity, indent=2) + "\n\n")
-        self.status_var.set("Identities encrypted")
+        try:
+            self.system.encrypt_identities()
+            self.encrypt_decrypt_text.delete("1.0", tk.END)
+            self.encrypt_decrypt_text.insert(tk.END, "Identities encrypted successfully.\n")
+            for i, identity in enumerate(self.system.encrypted_identities):
+                self.encrypt_decrypt_text.insert(tk.END, f"Encrypted Identity {i+1}:\n")
+                self.encrypt_decrypt_text.insert(tk.END, json.dumps(identity, indent=2) + "\n\n")
+            self.status_var.set("Identities encrypted")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
         
     def decrypt_identities(self):
-        self.system.decrypt_identities()
-        self.encrypt_decrypt_text.delete("1.0", tk.END)
-        self.encrypt_decrypt_text.insert(tk.END, "Identities decrypted successfully.\n")
-        for i, identity in enumerate(self.system.decrypted_identities):
-            self.encrypt_decrypt_text.insert(tk.END, f"Decrypted Identity {i+1}:\n")
-            self.encrypt_decrypt_text.insert(tk.END, json.dumps(identity, indent=2) + "\n\n")
-        self.status_var.set("Identities decrypted")
+        try:
+            self.encrypt_decrypt_text.delete("1.0", tk.END)
+            self.encrypt_decrypt_text.insert(tk.END, "Identities decrypted successfully.\n")
+
+            self.system.decrypted_identities = []
+            for encrypted_identity in self.system.encrypted_identities:
+                decrypted_identity = self.system.identity_encryptor.decrypt_identity(encrypted_identity)  # Pass encrypted_identity
+                self.system.decrypted_identities.append(decrypted_identity)
+
+            for i, identity in enumerate(self.system.decrypted_identities):
+                self.encrypt_decrypt_text.insert(tk.END, f"Decrypted Identity {i+1}:\n")
+                self.encrypt_decrypt_text.insert(tk.END, json.dumps(identity, indent=2) + "\n\n")
+            self.status_var.set("Identities decrypted")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+        
+    def search_identities(self, event):
+        search_term = self.search_entry.get().lower()
+        self.identity_tree.delete(*self.identity_tree.get_children())
+        for identity in self.system.generated_identities:
+            if search_term in f"{identity['first_name']} {identity['last_name']}".lower():
+                self.identity_tree.insert("", "end", values=(
+                    f"{identity['first_name']} {identity['last_name']}",
+                    identity['age'],
+                    identity['gender'],
+                    identity['country']
+                ))
 
 if __name__ == "__main__":
     app = GUI()

@@ -33,7 +33,7 @@ class IdentityGenerator:
         occupation = random.choice(self.occupations)
         email = f"{first_name.lower()}.{last_name.lower()}@{self.fake.free_email_domain()}"
         phone = self.fake.phone_number()
-        address = self.fake.address()
+        address = self.fake.address().replace('\n', ', ')
         credit_card = self.fake.credit_card_full()
         ssn = self.fake.ssn()
 
@@ -41,7 +41,7 @@ class IdentityGenerator:
             'first_name': first_name,
             'last_name': last_name,
             'gender': gender,
-            'dob': dob.strftime('%Y-%m-%d'),  # Convertir a string para facilitar la serialización
+            'dob': dob.strftime('%Y-%m-%d'),
             'age': age,
             'country': country,
             'ethnicity': ethnicity,
@@ -109,29 +109,32 @@ class MachineLearningModel:
 class DataValidator:
     @staticmethod
     def validate_age(age):
-        return 18 <= age <= 100
+        return isinstance(age, int) and 18 <= age <= 100
 
     @staticmethod
     def validate_email(email):
         pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
-        return re.match(pattern, email) is not None
+        return isinstance(email, str) and re.match(pattern, email) is not None
 
     @staticmethod
     def validate_phone(phone):
         pattern = r'^\+?1?\d{9,15}$'
-        return re.match(pattern, phone) is not None
+        return isinstance(phone, str) and re.match(pattern, phone) is not None
 
     @staticmethod
     def validate_credit_card(cc_number):
+        if not isinstance(cc_number, str):
+            return False
         cc_number = ''.join(filter(str.isdigit, cc_number))
-        if not cc_number.isdigit():
+        if not cc_number.isdigit() or len(cc_number) < 13 or len(cc_number) > 19:
             return False
         digits = [int(d) for d in cc_number]
-        odd_digits = digits[-1::-2]
-        even_digits = digits[-2::-2]
-        checksum = sum(odd_digits)
-        for digit in even_digits:
-            checksum += sum(divmod(digit * 2, 10))
+        checksum = sum(digits[-1::-2])
+        for digit in digits[-2::-2]:
+            digit *= 2
+            if digit > 9:
+                digit -= 9
+            checksum += digit
         return checksum % 10 == 0
 
 class IdentityEncryptor:
@@ -142,14 +145,14 @@ class IdentityEncryptor:
     def encrypt_identity(self, identity):
         encrypted_identity = {}
         for key, value in identity.items():
-            encrypted_value = self.fernet.encrypt(str(value).encode())
+            encrypted_value = self.fernet.encrypt(json.dumps(value).encode())
             encrypted_identity[key] = encrypted_value.decode()
         return encrypted_identity
 
     def decrypt_identity(self, encrypted_identity):
         decrypted_identity = {}
         for key, value in encrypted_identity.items():
-            decrypted_value = self.fernet.decrypt(value.encode()).decode()
+            decrypted_value = json.loads(self.fernet.decrypt(value.encode()).decode())
             decrypted_identity[key] = decrypted_value
         return decrypted_identity
 
@@ -277,11 +280,11 @@ class FakeIdentitySystem:
         self.identity_importer = IdentityImporter()
 
     def generate_identities(self, num_identities):
-        for _ in range(num_identities):
-            identity = self.identity_generator.generate_identity()
-            self.generated_identities.append(identity)
+        self.generated_identities.extend([
+            self.identity_generator.generate_identity() 
+            for _ in range(num_identities)
+        ])
         print(f"Generated {num_identities} fake identities.")
-        # Actualizar el analizador después de generar nuevas identidades
         self.identity_analyzer = IdentityAnalyzer(self.generated_identities)
 
     def train_model(self):
@@ -335,12 +338,12 @@ class FakeIdentitySystem:
         return id_card
 
     def validate_identity(self, identity):
-        is_valid = True
-        is_valid &= self.data_validator.validate_age(identity['age'])
-        is_valid &= self.data_validator.validate_email(identity['email'])
-        is_valid &= self.data_validator.validate_phone(identity['phone'])
-        is_valid &= self.data_validator.validate_credit_card(identity['credit_card'])
-        return is_valid
+        return all([
+            self.data_validator.validate_age(identity['age']),
+            self.data_validator.validate_email(identity['email']),
+            self.data_validator.validate_phone(identity['phone']),
+            self.data_validator.validate_credit_card(identity['credit_card'])
+        ])
 
     def encrypt_identities(self):
         try:
@@ -353,8 +356,15 @@ class FakeIdentitySystem:
             print(f"Encryption failed: {str(e)}")
 
 
-    def decrypt_identities(self):
-        self.decrypted_identities = [self.identity_encryptor.decrypt_identity(identity) for identity in self.encrypted_identities]
+    def encrypt_identities(self):
+        try:
+            self.encrypted_identities = [
+                self.identity_encryptor.encrypt_identity(identity) 
+                for identity in self.generated_identities
+            ]
+            print("Identities encrypted successfully.")
+        except Exception as e:
+            print(f"Encryption failed: {str(e)}")
 
     def analyze_identities(self):
         age_distribution = self.identity_analyzer.get_age_distribution()
@@ -369,24 +379,40 @@ class FakeIdentitySystem:
         print(f"Most Common Names: {common_names}")
 
     def export_identities(self, format, filename):
-        if format == 'csv':
-            self.identity_exporter.export_to_csv(self.generated_identities, filename)
-        elif format == 'json':
-            self.identity_exporter.export_to_json(self.generated_identities, filename)
-        elif format == 'sql':
-            self.identity_exporter.export_to_sql(self.generated_identities, filename)
+        export_methods = {
+            'csv': self.identity_exporter.export_to_csv,
+            'json': self.identity_exporter.export_to_json,
+            'sql': self.identity_exporter.export_to_sql
+        }
+
+        export_method = export_methods.get(format.lower())
+        if export_method:
+            try:
+                export_method(self.generated_identities, filename)
+                print(f"Identities exported successfully to {filename}")
+            except Exception as e:
+                print(f"Export failed: {str(e)}")
         else:
-            print("Invalid export format")
+            print("Invalid format. Please choose 'csv', 'json', or 'sql'.")
 
     def import_identities(self, format, filename):
-        if format == 'csv':
-            self.generated_identities = self.identity_importer.import_from_csv(filename)
-        elif format == 'json':
-            self.generated_identities = self.identity_importer.import_from_json(filename)
-        elif format == 'sql':
-            self.generated_identities = self.identity_importer.import_from_sql(filename)
+        import_methods = {
+            'csv': self.identity_importer.import_from_csv,
+            'json': self.identity_importer.import_from_json,
+            'sql': self.identity_importer.import_from_sql
+        }
+        
+        import_method = import_methods.get(format.lower())
+        if import_method:
+            try:
+                imported_identities = import_method(filename)
+                self.generated_identities.extend(imported_identities)
+                self.identity_analyzer = IdentityAnalyzer(self.generated_identities)
+                print(f"Imported {len(imported_identities)} identities from {filename}")
+            except Exception as e:
+                print(f"Import failed: {str(e)}")
         else:
-            print("Invalid import format")
+            print("Invalid format. Please choose 'csv', 'json', or 'sql'.")
 
     def run(self):
         print("Fake Identity Generation System")
