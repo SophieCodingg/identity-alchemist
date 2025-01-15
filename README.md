@@ -26,7 +26,7 @@ Identity Alchemist is a sophisticated tool designed for generating, managing, an
 - **Encryption and Decryption**: Secures sensitive identity information using strong encryption methods.
 - **Data Analysis**: Provides tools for analyzing generated identities, including age distribution, gender ratios, and common names.
 - **Import/Export Functionality**: Supports data import and export in multiple formats (CSV, JSON, SQL).
-- **Synthetic ID Card Generation**: Creates simulated identification cards based on the generated identity information.
+- **Synthetic ID Card Generation**: Creates simulated identification cards based on the generated identity information. (Future update)
 
 ## Requirements
 
