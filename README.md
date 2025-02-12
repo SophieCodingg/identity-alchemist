@@ -21,7 +21,7 @@ Identity Alchemist is a sophisticated tool designed for generating, managing, an
 ## Features
 
 - **Identity Generation**: Create realistic synthetic identities with various attributes including name, gender, age, nationality, and more.
-- **Machine Learning Integration**: Utilizes a Random Forest classifier to predict a person's country based on other characteristics.
+- **Machine Learning Integration**: Utilizes a Random Forest classifier to predict a person's country based on other characteristics. (Needs to be improved)
 - **Data Validation**: Ensures the integrity and realism of generated data through various validation checks.
 - **Encryption and Decryption**: Secures sensitive identity information using strong encryption methods.
 - **Data Analysis**: Provides tools for analyzing generated identities, including age distribution, gender ratios, and common names.
