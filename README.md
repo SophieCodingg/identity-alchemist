@@ -41,7 +41,7 @@ Identity Alchemist is a sophisticated tool designed for generating, managing, an
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/identity-alchemist.git
+   git clone https://github.com/AgustinCoding/identity-alchemist.git
    cd identity-alchemist
    ```
 
